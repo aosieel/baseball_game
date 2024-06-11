@@ -1,4 +1,5 @@
 import json
+import os
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 import time
 from threading import Thread
@@ -216,6 +217,8 @@ def submit_guess():
         return jsonify({'error': "Room not found"}), 404
 
 if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
     cleanup_thread = Thread(target=cleanup_rooms)
     cleanup_thread.daemon = True
     cleanup_thread.start()
