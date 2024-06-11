@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Number Baseball Game</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            var roomName = "{{ room_name }}";
+            var role = "{{ role }}";
+            var hasReloaded = sessionStorage.getItem('hasReloaded') === 'true';
+
+            function updateGameState() {
+                $.getJSON("/game_state", { room_name: roomName }, function(data) {
+                    var guessInput = $("#guess-input").val() || "";
+                    var guessInputLength = guessInput.length;
+
+                    if (data.winner) {
+                        if (data.winner === role) {
+                            $('#turn-info').text("You win!");
+                        } else {
+                            $('#turn-info').text("You lose!");
+                        }
+                        $('#guess-form').hide();
+
+                        if (!hasReloaded) {
+                            setTimeout(function() {
+                                sessionStorage.setItem('hasReloaded', 'true');
+                                location.reload();
+                            }, 2000);
+                        } else {
+                            $('#message').html('<button id="new-game-button">New Game</button>');
+
+                            $('#new-game-button').click(function() {
+                                window.location.href = "/";
+                            });
+
+                            setTimeout(function() {
+                                window.location.href = "/";
+                            }, 120000);
+                        }
+                    } else {
+                        if (data.turn !== "guest") {
+                            if (role !== "guest") {
+                                $("#game-status").html('<form id="guess-form" method="post"><input type="hidden" name="room_name" value="' + roomName + '"><input type="hidden" name="role" value="' + role + '"><input type="text" id="guess-input" name="guess_number" placeholder="Enter your guess" value="' + guessInput + '"><button type="submit">Submit Guess</button></form>');
+                            } else {
+                                $("#game-status").html("<p>It's opponent's turn</p>");
+                            }
+                        } else {
+                            if (role === "guest") {
+                                $("#game-status").html('<form id="guess-form" method="post"><input type="hidden" name="room_name" value="' + roomName + '"><input type="hidden" name="role" value="' + role + '"><input type="text" id="guess-input" name="guess_number" placeholder="Enter your guess" value="' + guessInput + '"><button type="submit">Submit Guess</button></form>');
+                            } else {
+                                $("#game-status").html("<p>It's opponent's turn</p>");
+                            }
+                        }
+                    }
+
+                    var host_guesses = data.host_guesses.map(function(guess) {
+                        return "<li>" + guess.guess + ": " + guess.result + "</li>";
+                    }).join("");
+                    $("#host-guesses").html(host_guesses);
+
+                    var guest_guesses = data.guest_guesses.map(function(guess) {
+                        return "<li>" + guess.guess + ": " + guess.result + "</li>";
+                    }).join("");
+                    $("#guest-guesses").html(guest_guesses);
+
+                    var guessInputField = $("#guess-input");
+                    guessInputField.focus();
+                    guessInputField[0].setSelectionRange(guessInputLength, guessInputLength);
+                });
+            }
+
+            setInterval(updateGameState, 3000);
+
+            $(document).on('submit', '#guess-form', function(event) {
+                event.preventDefault();
+                var form = $(this);
+                $.ajax({
+                    type: 'POST',
+                    url: "{{ url_for('submit_guess') }}",
+                    data: form.serialize(),
+                    success: function(response) {
+                        $("#error-message").text("");
+                        $("#guess-input").val("");
+                        updateGameState();
+                    },
+                    error: function(xhr) {
+                        if (xhr.responseJSON && xhr.responseJSON.error) {
+                            $("#error-message").text(xhr.responseJSON.error);
+                        } else {
+                            $("#error-message").text("An error occurred. Please try again.");
+                        }
+                        $("#guess-input").prop("disabled", false);
+                        $("#guess-form button[type='submit']").prop("disabled", false);
+                    }
+                });
+            });
+
+            sessionStorage.removeItem('hasReloaded');
+        });
+    </script>
+</head>
+<body>
+    <h1>Number Baseball Game</h1>
+    <p>Room: {{ room_name }} role: {{ role }}</p>
+
+    <div id="game-status">
+        {% if room.winner %}
+            {% if room.winner == 'guest' and role == 'guest' %}
+                <h2>You win!</h2>
+            {% elif room.winner == 'host' and role != 'guest' %}
+                <h2>You win!</h2>
+            {% elif room.winner == 'guest' and role != 'guest' %}
+                <h2>You lose</h2>
+            {% elif room.winner == 'host' and role == 'guest' %}
+                <h2>You lose</h2>
+            {% endif %}
+        {% else %}
+            {% if (role != 'guest' and room.turn == 'host') or (role == 'guest' and room.turn == 'guest') %}
+                <form id="guess-form" method="post">
+                    <input type="hidden" name="room_name" value="{{ room_name }}">
+                    <input type="hidden" name="role" value="{{ role }}">
+                    <input type="text" id="guess-input" name="guess_number" placeholder="Enter your guess">
+                    <button type="submit">Submit Guess</button>
+                </form>
+            {% else %}
+                <p>It's opponent's turn</p>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    <div id="error-message" style="color:red;"></div>
+    <div id="message" style="color:blue; font-size:20px;"></div>
+
+    <h3>Host's Guesses</h3>
+    <ul id="host-guesses">
+        {% for guess in room.host_guesses %}
+            <li>{{ guess.guess }}: {{ guess.result }}</li>
+        {% endfor %}
+    </ul>
+
+    <h3>Guest's Guesses</h3>
+    <ul id="guest-guesses">
+        {% for guess in room.guest_guesses %}
+            <li>{{ guess.guess }}: {{ guess.result }}</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

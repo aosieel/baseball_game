@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Waiting Room</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Focus on the secret number input field
+            $("#secret_number").focus();
+        });
+    </script>
+</head>
+<body>
+    <h1>Waiting Room</h1>
+    <p>Room: {{ room_name }} (Role: {{ role.capitalize() }})</p>
+    
+    {% if role == 'host' %}
+        {% if room_data['guest'] %}
+            <p>Guest has joined. Please submit your secret number.</p>
+        {% else %}
+            <p>Waiting for guest to join...</p>
+            <script>
+                setInterval(function() {
+                    $.getJSON('/check_player_joined', { room_name: '{{ room_name }}' }, function(data) {
+                        if (data.player_joined) {
+                            location.reload();
+                        }
+                    });
+                }, 5000); // Poll every 5 seconds
+            </script>
+        {% endif %}
+        
+        {% if not room_data.get('host_submitted') %}
+            <form id="number-form" action="/submit_number" method="post">
+                <input type="hidden" name="room_name" value="{{ room_name }}">
+                <input type="hidden" name="role" value="{{ role }}">
+                <label for="secret_number">Your Secret Number:</label>
+                <input type="text" id="secret_number" name="secret_number" required>
+                <button type="submit">Submit</button>
+            </form>
+            <div id="error-message" style="color: red;"></div>
+            <script>
+                $(document).on('submit', '#number-form', function(event) {
+                    event.preventDefault();
+                    var form = $(this);
+                    $.ajax({
+                        type: 'POST',
+                        url: form.attr('action'),
+                        data: form.serialize(),
+                        success: function(response) {
+                            if (response.redirect) {
+                                window.location.href = response.redirect;
+                            } else {
+                                $("#error-message").text('');
+                                location.reload();
+                            }
+                        },
+                        error: function(xhr) {
+                            if (xhr.responseJSON && xhr.responseJSON.error) {
+                                $("#error-message").text(xhr.responseJSON.error);
+                            } else {
+                                alert("An error occurred. Please try again.");
+                            }
+                        }
+                    });
+                });
+            </script>
+        {% else %}
+            <p>Waiting for the guest to submit guest's number...</p>
+        {% endif %}
+    
+    {% elif role == 'guest' %}
+        {% if room_data['host_number'] %}
+            <p>Host has submitted host's secret number. Please submit your secret number.</p>
+        {% else %}
+            <p>Please wait for the host to submit host's number.</p>
+        {% endif %}
+        
+        {% if not room_data.get('guest_submitted') %}
+            <form id="number-form" action="/submit_number" method="post">
+                <input type="hidden" name="room_name" value="{{ room_name }}">
+                <input type="hidden" name="role" value="{{ role }}">
+                <label for="secret_number">Your Secret Number:</label>
+                <input type="text" id="secret_number" name="secret_number" required>
+                <button type="submit">Submit</button>
+            </form>
+            <div id="error-message" style="color: red;"></div>
+            <script>
+                $(document).on('submit', '#number-form', function(event) {
+                    event.preventDefault();
+                    var form = $(this);
+                    $.ajax({
+                        type: 'POST',
+                        url: form.attr('action'),
+                        data: form.serialize(),
+                        success: function(response) {
+                            if (response.redirect) {
+                                window.location.href = response.redirect;
+                            } else {
+                                $("#error-message").text('');
+                                location.reload();
+                            }
+                        },
+                        error: function(xhr) {
+                            if (xhr.responseJSON && xhr.responseJSON.error) {
+                                $("#error-message").text(xhr.responseJSON.error);
+                            } else {
+                                alert("An error occurred. Please try again.");
+                            }
+                        }
+                    });
+                });
+            </script>
+        {% else %}
+            <p>Waiting for the host to submit host's number...</p>
+        {% endif %}
+    {% else %}
+        <p>Invalid role. Please rejoin the game with a valid role.</p>
+    {% endif %}
+    
+    <script>
+        setInterval(function() {
+            $.getJSON('/check_submission_status', { room_name: '{{ room_name }}' }, function(data) {
+                if (data.host_submitted && data.guest_submitted) {
+                    window.location.href = "{{ url_for('play_game', room_name=room_name, role=role) }}";
+                }
+            });
+        }, 5000); // Poll every 5 seconds
+    </script>
+</body>
+</html>

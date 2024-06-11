@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Number Baseball Game</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Number Baseball Game</h1>
+    <form action="{{ url_for('create_room') }}" method="post">
+        <label for="room_name">Room Name:</label>
+        <input type="text" id="room_name" name="room_name" required>
+        <button type="submit">Create Room</button>
+    </form>
+
+    <form action="{{ url_for('join_room') }}" method="post">
+        <label for="room_name">Room Name:</label>
+        <input type="text" id="room_name" name="room_name" required>
+        <button type="submit">Join Room</button>
+    </form>
+</body>
+</html>
