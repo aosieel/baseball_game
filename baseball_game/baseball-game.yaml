@@ -1,0 +1,17 @@
+name: baseball-game
+app: python@3.11
+options:
+  env:
+    - name: FLASK_ENV
+      value: production
+    - name: DATABASE_URL
+      value: ${{ secrets.DATABASE_URL }}
+    - name: SECRET_KEY
+      value: ${{ secrets.SECRET_KEY }}
+  ports: 5000
+  buildenv: []
+  prestart: pip install -r requirements.txt
+context:
+  git:
+    url: https://port-0-baseball-game-1pgyr2mlvpyhx1j.sel5.cloudtype.app
+    branch: main
