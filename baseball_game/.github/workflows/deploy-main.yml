@@ -1,0 +1,40 @@
+name: Deploy to cloudtype
+on:
+  push:
+    branches:
+      - main
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Connect deploy key
+        uses: cloudtype-github-actions/connect@v1
+        with:
+          token: ${{ secrets.CLOUDTYPE_TOKEN }}
+          ghtoken: ${{ secrets.GHP_TOKEN }}
+      - name: Deploy
+        uses: cloudtype-github-actions/deploy@v1
+        with:
+          token: ${{ secrets.CLOUDTYPE_TOKEN }}
+          project: houngug1234/flask
+          stage: main
+          yaml: |
+            name: baseball-game
+            app: python@3.11
+            options:
+              env:
+                - name: FLASK_ENV
+                  value: production
+                - name: DATABASE_URL
+                  value: ${{ secrets.DATABASE_URL }}
+                - name: SECRET_KEY
+                  value: ${{ secrets.SECRET_KEY }}
+              ports: 5000
+              buildenv: []
+              prestart: pip install -r requirements.txt
+            context:
+              git:
+                url: git@github.com:${{ github.repository }}.git
+                ref: ${{ github.ref }}
